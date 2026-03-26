@@ -18,7 +18,7 @@ interface ApprovalsSectionProps {
     stepId: string,
     status: 'approved' | 'rejected',
     comment?: string,
-    hrEmail?: string
+    nextApproverEmail?: string
   ) => void
   onSignatureSave?: (stepId: string, signatureData: string) => void
   onSignatureClear?: (stepId: string) => void
@@ -35,9 +35,10 @@ export function ApprovalsSection({
   onSignatureClear,
   isReadOnly = false,
 }: ApprovalsSectionProps) {
-  const [hrEmail, setHrEmail] = useState('')
+  const [nextEmail, setNextEmail] = useState('')
   const steps = formSubmission.approvalSteps
   const currentStepIndex = steps.findIndex((s) => s.status === 'pending')
+  
   const canApprove =
     formSubmission.status === 'pending_approval' &&
     !isReadOnly &&
@@ -45,18 +46,24 @@ export function ApprovalsSection({
 
   const isLastStep = (index: number) => index === steps.length - 1
 
-  // כל מאשר רואה רק שלבים שכבר הושלמו + השלב הנוכחי שלו בלבד.
-  // שלבים עתידיים (עדיין 'pending' אחרי השלב הנוכחי) מוסתרים.
   const visibleSteps = steps.filter(
     (step, index) => step.status !== 'pending' || index === currentStepIndex
   )
 
   return (
     <SectionCard title="5. אישורים וחתימות">
+      {/* תיקון לוגו שבור - במידה והוא מופיע כאן או בקומפוננטה אחרת, וודא שהנתיב מתחיל בשם הריפוזיטורי */}
       <div className="space-y-6">
         {visibleSteps.map((step) => {
           const index = steps.indexOf(step)
           const isCurrentStep = index === currentStepIndex
+          
+          // הגדרה: האם השלב הנוכחי דורש הזנת מייל? 
+          // (כל שלב חוץ מהראשון, או לפי דרישתך - כאן הגדרתי שכל שלב פעיל יציג את זה)
+          const needsEmailInput = canApprove && isCurrentStep;
+          const emailLabel = isLastStep(index) 
+            ? "מייל מחלקת משאבי האנוש לקבלת הטופס הסופי *" 
+            : "מייל המאשר הבא (מנכ\"ל/הנהלה) להמשך התהליך *";
 
           return (
             <div
@@ -68,7 +75,6 @@ export function ApprovalsSection({
                 step.status === 'pending' && 'border-slate-200 bg-slate-50/30'
               )}
             >
-              {/* כותרת שלב */}
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <h4 className="font-semibold text-aminach-primary">
@@ -81,24 +87,24 @@ export function ApprovalsSection({
                 <StatusBadge status={step.status} />
               </div>
 
-              {/* שדה מייל HR – מוצג רק למנכ"ל (האחרון) כשזה תורו */}
-              {canApprove && isCurrentStep && isLastStep(index) && (
+              {/* שדה הזנת מייל - מופיע למאשר הנוכחי */}
+              {needsEmailInput && (
                 <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
                   <label className="mb-1 flex items-center gap-2 text-sm font-medium text-blue-800">
                     <Mail className="h-4 w-4" />
-                    מייל מחלקת משאבי האנוש לשליחת הטופס הסופי *
+                    {emailLabel}
                   </label>
                   <input
                     type="email"
-                    value={hrEmail}
-                    onChange={(e) => setHrEmail(e.target.value)}
-                    placeholder="hr@aminach.co.il"
+                    value={nextEmail}
+                    onChange={(e) => setNextEmail(e.target.value)}
+                    placeholder="example@aminach.co.il"
                     dir="ltr"
                     className={inputClass}
                   />
-                  {!hrEmail.trim() && (
+                  {!nextEmail.trim() && (
                     <p className="mt-1 text-xs text-amber-600">
-                      * יש להזין מייל HR לפני האישור
+                      * שדה חובה להמשך התהליך
                     </p>
                   )}
                 </div>
@@ -114,10 +120,10 @@ export function ApprovalsSection({
                         step.id,
                         'approved',
                         undefined,
-                        isLastStep(index) ? hrEmail : undefined
+                        nextEmail // שולח את המייל שהוזן ידנית
                       )
                     }
-                    disabled={isLastStep(index) && !hrEmail.trim()}
+                    disabled={!nextEmail.trim()}
                     className="text-green-700"
                   >
                     <Check className="ml-1 h-4 w-4" />
@@ -138,7 +144,6 @@ export function ApprovalsSection({
                 </div>
               )}
 
-              {/* הערת דחייה */}
               {step.comment && (
                 <p className="mb-2 text-sm text-slate-600">
                   <span className="font-medium">הערה: </span>
@@ -146,12 +151,10 @@ export function ApprovalsSection({
                 </p>
               )}
 
-              {/* תאריך חתימה */}
               {step.signedAt && (
                 <p className="mb-2 text-sm text-slate-500">תאריך: {step.signedAt}</p>
               )}
 
-              {/* לוח חתימה פעיל */}
               {canApprove && isCurrentStep && onSignatureSave && (
                 <div className="mt-3">
                   <label className="mb-2 block text-sm font-medium text-slate-700">
@@ -165,7 +168,6 @@ export function ApprovalsSection({
                 </div>
               )}
 
-              {/* חתימה שמורה (לשלב שכבר אושר) */}
               {step.signatureData && step.status !== 'pending' && (
                 <div className="mt-3">
                   <label className="mb-2 block text-sm font-medium text-slate-700">חתימה</label>
@@ -249,20 +251,6 @@ function ApprovalTimeline({
           {allApproved ? '✓' : '↪'}
         </div>
       </div>
-      <div className="mt-2 flex justify-between text-xs text-slate-500">
-        {steps.map((step) => (
-          <span key={step.id} className="max-w-[70px] truncate">
-            {step.title}
-          </span>
-        ))}
-        <span className="max-w-[90px] truncate">משאבי אנוש</span>
-      </div>
-      {(allApproved || anyRejected) && (
-        <p className="mt-2 text-sm font-medium">
-          {allApproved && 'כל האישורים הושלמו – הטופס נשלח למשאבי אנוש'}
-          {anyRejected && 'הטופס נדחה על ידי אחד המאשרים'}
-        </p>
-      )}
     </div>
   )
 }
