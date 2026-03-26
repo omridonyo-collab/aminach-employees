@@ -18,10 +18,10 @@ export function Header({ form }: HeaderProps) {
   return (
     <header className="border-b border-slate-200 bg-white shadow-sm">
       <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-3 px-4 py-3 sm:flex-row">
-        {/* לוגו + כותרת */}
+        {/* לוגו + כותרת - כאן בוצע התיקון */}
         <div className="flex items-center gap-4">
           <img
-            src="/aminach-logo.svg"
+            src="./aminach-logo.svg"
             alt="עמינח"
             className="h-12 w-auto"
           />
