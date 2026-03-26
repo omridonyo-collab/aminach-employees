@@ -147,13 +147,13 @@ export default function App() {
   const currentStepIndex = form.approvalSteps.findIndex((s) => s.status === 'pending')
   const formSectionsReadOnly = form.status === 'approved' || (form.status === 'pending_approval' && currentStepIndex === 2)
 
-  // ── handle approval (FIXED VERSION) ────────────────────────────────────────────
+  // ── handle approval ────────────────────────────────────────────────────────────
   const handleApprovalWithEmail = useCallback(
     async (
       stepId: string,
       status: 'approved' | 'rejected',
       comment?: string,
-      targetNextEmail?: string // המייל שהוזן ידנית
+      targetNextEmail?: string
     ) => {
       setIsSending(true)
       setStatusMsg(null)
@@ -162,9 +162,7 @@ export default function App() {
         const currentValues = methods.getValues()
         const currentFieldSubmission = formValuesToSubmission(currentValues, form.approvalSteps, form.status)
 
-        // 1. עדכון השלבים: סימון האישור הנוכחי + עדכון המייל לשלב הבא
         const steps: ApprovalStep[] = form.approvalSteps.map((s, idx) => {
-          // אם זה הצעד הנוכחי שמאשרים
           if (s.id === stepId) {
             return {
               ...s,
@@ -173,7 +171,6 @@ export default function App() {
               signedAt: format(new Date(), 'yyyy-MM-dd HH:mm'),
             }
           }
-          // אם זה הצעד הבא - נעדכן לו את המייל שהוקלד ידנית
           if (idx === currentStepIndex + 1 && targetNextEmail) {
             return { ...s, managerEmail: targetNextEmail }
           }
@@ -192,14 +189,11 @@ export default function App() {
           updatedAt: format(new Date(), 'yyyy-MM-dd'),
         }
 
-        // עדכון הסטייט המקומי
         updateForm(updatedForm)
 
-        // 2. לוגיקת שליחת מיילים
         if (newStatus === 'rejected') {
           setStatusMsg(`⛔ הטופס נדחה`)
         } else if (newStatus === 'approved') {
-          // שלב סופי - למשאבי אנוש
           await sendHrFinalEmail(updatedForm, targetNextEmail || '')
           setSuccessInfo({
             employeeName: updatedForm.employeeDetails.employeeName,
@@ -208,7 +202,6 @@ export default function App() {
             formLink: encodeFormToUrl(updatedForm),
           })
         } else {
-          // שלב ביניים - למאשר הבא
           const nextStep = steps[currentStepIndex + 1]
           if (nextStep) {
             await sendApprovalRequestEmail(updatedForm, nextStep)
@@ -222,7 +215,7 @@ export default function App() {
         }
       } catch (error) {
         console.error("Error in approval:", error)
-        alert("אירעה שגיאה בתהליך האישור. אנא נסה שוב.")
+        alert("אירעה שגיאה בתהליך האישור.")
       } finally {
         setIsSending(false)
       }
@@ -230,7 +223,6 @@ export default function App() {
     [form, currentStepIndex, updateForm, methods]
   )
 
-  // ── Rest of the functions (Manager Submit, Save Draft, etc.) ──────────────────
   const handleSendFromManager = useCallback(
     (signature: string, deptManagerName: string, deptManagerEmail: string) => {
       methods.handleSubmit(async (values) => {
@@ -243,4 +235,70 @@ export default function App() {
           ]
           const submission = formValuesToSubmission(values, freshSteps, 'pending_approval')
           const updatedForm: FormSubmission = { ...form, ...submission, approvalSteps: freshSteps, status: 'pending_approval', updatedAt: format(new Date(), 'yyyy-MM-dd') }
-          updateForm(updatedForm
+          updateForm(updatedForm)
+          await sendApprovalRequestEmail(updatedForm, freshSteps[1])
+          setSuccessInfo({ employeeName: values.employeeDetails.employeeName, nextApproverName: deptManagerName, nextApproverEmail: deptManagerEmail, formLink: encodeFormToUrl(updatedForm) })
+        } finally { setIsSending(false) }
+      })()
+    }, [form, methods, updateForm]
+  )
+
+  const handleSaveDraft = () => {
+    const values = methods.getValues()
+    const submission = formValuesToSubmission(values, form.approvalSteps, 'draft')
+    updateForm(submission); setStatusMsg('הטיוטה נשמרה')
+  }
+
+  const handleClearForm = () => { if (confirm('לנקות טופס?')) { methods.reset(defaultValues); resetToDraft(); setStatusMsg(null); setSuccessInfo(null); } }
+  const getFullSubmission = () => formValuesToSubmission(methods.getValues(), form.approvalSteps, form.status)
+  const handleExportPdf = () => exportToPdf({ ...form, ...getFullSubmission() })
+  const handlePrint = () => printForm({ ...form, ...getFullSubmission() })
+  const handlePreview = () => { updateForm(getFullSubmission()); setShowPreview(true) }
+
+  const copyApprovalLink = useCallback(() => {
+    const link = encodeFormToUrl({ ...form, ...getFullSubmission() })
+    navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+  }, [form, methods])
+
+  if (successInfo) return <SuccessScreen info={successInfo} onReset={() => { setSuccessInfo(null); methods.reset(defaultValues); resetToDraft(); }} />
+
+  return (
+    <div className="min-h-screen bg-slate-100" dir="rtl">
+      <Header form={form} />
+      <main className="mx-auto max-w-4xl px-4 py-8">
+        {statusMsg && <div className="mb-4 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"><CheckCircle2 className="h-4 w-4" />{statusMsg}</div>}
+        <FormProvider {...methods}>
+          <form className="space-y-6">
+            <fieldset disabled={formSectionsReadOnly} className={formSectionsReadOnly ? 'pointer-events-none opacity-75' : ''}>
+              <div className="space-y-6">
+                <EmployeeDetailsSection />
+                <PerformanceScoresSection />
+                <WrittenEvaluationSection />
+                <SalarySection />
+              </div>
+            </fieldset>
+
+            {form.status === 'draft' || form.status === 'rejected' ? (
+              <ManagerDraftSection managerName={methods.watch('employeeDetails.directManagerName') ?? ''} onSubmit={handleSendFromManager} isSubmitting={isSending} />
+            ) : (
+              <ApprovalsSection 
+                formSubmission={{...form, ...getFullSubmission()}} 
+                onApprovalAction={handleApprovalWithEmail} 
+                onSignatureSave={handleSignatureSave} 
+                onSignatureClear={handleSignatureClear} 
+                isReadOnly={form.status === 'approved'} 
+              />
+            )}
+
+            <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-6">
+              <Button type="button" variant="ghost" onClick={handlePreview}><Eye className="ml-2 h-4 w-4" />תצוגה מקדימה</Button>
+              <Button type="button" variant="outline" onClick={handleExportPdf}><FileText className="ml-2 h-4 w-4" />ייצא PDF</Button>
+              <Button type="button" variant="outline" onClick={handlePrint}><Printer className="ml-2 h-4 w-4" />הדפס</Button>
+            </div>
+          </form>
+        </FormProvider>
+      </main>
+      {showPreview && <PreviewModal form={{...form, ...getFullSubmission()}} onClose={() => setShowPreview(false)} />}
+    </div>
+  )
+}
