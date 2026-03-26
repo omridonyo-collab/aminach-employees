@@ -34,7 +34,7 @@ const defaultValues: FormSchemaType = {
   salaryRecommendation: initialForm.salaryRecommendation,
 }
 
-// ─── מסך הצלחה ────────────────────────────────────────────────────────────────
+// ─── Success Screen ───────────────────────────────────────────────────────────
 interface SuccessInfo {
   employeeName: string
   nextApproverName: string
@@ -129,7 +129,6 @@ export default function App() {
     return formValuesToSubmission(methods.getValues(), form.approvalSteps, form.status)
   }, [methods, form.approvalSteps, form.status])
 
-  // ── handle approval ────────────────────────────────────────────────────────────
   const handleApprovalWithEmail = useCallback(
     async (
       stepId: string,
@@ -218,12 +217,4 @@ export default function App() {
           const updatedForm: FormSubmission = { ...form, ...submission, approvalSteps: freshSteps, status: 'pending_approval' as FormStatus, updatedAt: format(new Date(), 'yyyy-MM-dd') }
           updateForm(updatedForm)
           await sendApprovalRequestEmail(updatedForm, freshSteps[1])
-          setSuccessInfo({ employeeName: values.employeeDetails.employeeName, nextApproverName: deptManagerName, nextApproverEmail: deptManagerEmail, formLink: encodeFormToUrl(updatedForm) })
-        } finally { setIsSending(false) }
-      })()
-    }, [form, methods, updateForm]
-  )
-
-  const handleExportPdf = () => exportToPdf({ ...form, ...getFullSubmission() })
-  const handlePrint = () => printForm({ ...form, ...getFullSubmission() })
-  const handlePreview = () => {
+          setSuccessInfo({ employeeName: values.employeeDetails.employee
