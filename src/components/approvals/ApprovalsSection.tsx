@@ -18,7 +18,7 @@ interface ApprovalsSectionProps {
     stepId: string,
     status: 'approved' | 'rejected',
     comment?: string,
-    nextApproverEmail?: string
+    nextEmail?: string
   ) => void
   onSignatureSave?: (stepId: string, signatureData: string) => void
   onSignatureClear?: (stepId: string) => void
@@ -35,7 +35,7 @@ export function ApprovalsSection({
   onSignatureClear,
   isReadOnly = false,
 }: ApprovalsSectionProps) {
-  const [nextEmail, setNextEmail] = useState('')
+  const [targetEmail, setTargetEmail] = useState('')
   const steps = formSubmission.approvalSteps
   const currentStepIndex = steps.findIndex((s) => s.status === 'pending')
   
@@ -52,18 +52,10 @@ export function ApprovalsSection({
 
   return (
     <SectionCard title="5. אישורים וחתימות">
-      {/* תיקון לוגו שבור - במידה והוא מופיע כאן או בקומפוננטה אחרת, וודא שהנתיב מתחיל בשם הריפוזיטורי */}
       <div className="space-y-6">
         {visibleSteps.map((step) => {
           const index = steps.indexOf(step)
           const isCurrentStep = index === currentStepIndex
-          
-          // הגדרה: האם השלב הנוכחי דורש הזנת מייל? 
-          // (כל שלב חוץ מהראשון, או לפי דרישתך - כאן הגדרתי שכל שלב פעיל יציג את זה)
-          const needsEmailInput = canApprove && isCurrentStep;
-          const emailLabel = isLastStep(index) 
-            ? "מייל מחלקת משאבי האנוש לקבלת הטופס הסופי *" 
-            : "מייל המאשר הבא (מנכ\"ל/הנהלה) להמשך התהליך *";
 
           return (
             <div
@@ -87,43 +79,38 @@ export function ApprovalsSection({
                 <StatusBadge status={step.status} />
               </div>
 
-              {/* שדה הזנת מייל - מופיע למאשר הנוכחי */}
-              {needsEmailInput && (
+              {/* שדה הזנת מייל ידני - מופיע לכל מאשר בתורו */}
+              {canApprove && isCurrentStep && (
                 <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
                   <label className="mb-1 flex items-center gap-2 text-sm font-medium text-blue-800">
                     <Mail className="h-4 w-4" />
-                    {emailLabel}
+                    {isLastStep(index) 
+                      ? "מייל משאבי אנוש לקבלת הטופס הסופי *" 
+                      : "מייל המנכ\"ל לאישור סופי *"}
                   </label>
                   <input
                     type="email"
-                    value={nextEmail}
-                    onChange={(e) => setNextEmail(e.target.value)}
+                    value={targetEmail}
+                    onChange={(e) => setTargetEmail(e.target.value)}
                     placeholder="example@aminach.co.il"
                     dir="ltr"
                     className={inputClass}
                   />
-                  {!nextEmail.trim() && (
+                  {!targetEmail.trim() && (
                     <p className="mt-1 text-xs text-amber-600">
-                      * שדה חובה להמשך התהליך
+                      * חובה להזין כתובת מייל להמשך
                     </p>
                   )}
                 </div>
               )}
 
-              {/* כפתורי אישור / דחייה */}
+              {/* כפתורי פעולה */}
               {canApprove && isCurrentStep && onApprovalAction && (
                 <div className="mb-3 flex gap-2">
                   <Button
                     size="sm"
-                    onClick={() =>
-                      onApprovalAction(
-                        step.id,
-                        'approved',
-                        undefined,
-                        nextEmail // שולח את המייל שהוזן ידנית
-                      )
-                    }
-                    disabled={!nextEmail.trim()}
+                    onClick={() => onApprovalAction(step.id, 'approved', undefined, targetEmail)}
+                    disabled={!targetEmail.trim()}
                     className="text-green-700"
                   >
                     <Check className="ml-1 h-4 w-4" />
@@ -133,7 +120,7 @@ export function ApprovalsSection({
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const comment = prompt('הכנס הערה לדחייה (אופציונלי):')
+                      const comment = prompt('הערה לדחייה:')
                       onApprovalAction(step.id, 'rejected', comment || undefined)
                     }}
                     className="text-red-700"
@@ -146,8 +133,7 @@ export function ApprovalsSection({
 
               {step.comment && (
                 <p className="mb-2 text-sm text-slate-600">
-                  <span className="font-medium">הערה: </span>
-                  {step.comment}
+                  <span className="font-medium">הערה: </span>{step.comment}
                 </p>
               )}
 
@@ -155,11 +141,10 @@ export function ApprovalsSection({
                 <p className="mb-2 text-sm text-slate-500">תאריך: {step.signedAt}</p>
               )}
 
+              {/* לוח חתימה */}
               {canApprove && isCurrentStep && onSignatureSave && (
                 <div className="mt-3">
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    חתימה דיגיטלית
-                  </label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700">חתימה דיגיטלית</label>
                   <SignaturePad
                     savedSignature={step.signatureData}
                     onSave={(data) => onSignatureSave(step.id, data)}
@@ -202,55 +187,15 @@ function StatusBadge({ status }: { status: ApprovalStatus }) {
   )
 }
 
-function ApprovalTimeline({
-  steps,
-  currentStepIndex,
-}: {
-  steps: ApprovalStep[]
-  currentStepIndex: number
-}) {
+function ApprovalTimeline({ steps, currentStepIndex }: { steps: ApprovalStep[], currentStepIndex: number }) {
   const allApproved = steps.every((s) => s.status === 'approved')
-  const anyRejected = steps.some((s) => s.status === 'rejected')
-  const approvedCount = steps.filter((s) => s.status === 'approved').length
-
   return (
-    <div className="mt-6 border-t border-slate-200 pt-4">
-      <h4 className="mb-3 text-sm font-medium text-slate-700">מהלך האישורים</h4>
-      <div className="flex items-center gap-2">
-        {steps.map((step, i) => (
-          <div key={step.id} className="flex flex-1 items-center">
-            <div
-              className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-medium',
-                step.status === 'approved' && 'bg-green-500 text-white',
-                step.status === 'rejected' && 'bg-red-500 text-white',
-                step.status === 'pending' &&
-                  i === currentStepIndex &&
-                  'border-2 border-aminach-accent bg-white text-aminach-accent',
-                step.status === 'pending' &&
-                  i !== currentStepIndex &&
-                  'bg-slate-200 text-slate-400'
-              )}
-            >
-              {step.status === 'approved' ? '✓' : step.status === 'rejected' ? '✗' : i + 1}
-            </div>
-            <div
-              className={cn(
-                'h-0.5 flex-1',
-                approvedCount > i ? 'bg-green-300' : 'bg-slate-200'
-              )}
-            />
-          </div>
-        ))}
-        <div
-          className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm',
-            allApproved ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'
-          )}
-        >
-          {allApproved ? '✓' : '↪'}
-        </div>
-      </div>
+    <div className="mt-6 border-t border-slate-200 pt-4 text-center">
+      {allApproved ? (
+        <p className="text-sm font-medium text-green-600">כל האישורים הושלמו בהצלחה!</p>
+      ) : (
+        <p className="text-sm text-slate-500">שלב {currentStepIndex + 1} מתוך {steps.length} בתהליך האישור</p>
+      )}
     </div>
   )
 }
