@@ -29,6 +29,8 @@ jobs:
           VITE_EMAILJS_TEMPLATE_APPROVAL_ID: ${{ secrets.VITE_EMAILJS_TEMPLATE_APPROVAL_ID }}
           VITE_EMAILJS_TEMPLATE_HR_FINAL_ID: ${{ secrets.VITE_EMAILJS_TEMPLATE_HR_FINAL_ID }}
           VITE_EMAILJS_PUBLIC_KEY: ${{ secrets.VITE_EMAILJS_PUBLIC_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
