@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 130">
+  <!-- Banner shape: straight top/bottom, curved left/right sides (concave inward) -->
+  <path
+    d="M 30,5
+       Q 5,65 30,125
+       L 310,125
+       Q 335,65 310,5
+       Z"
+    fill="#1B35FF"
+  />
+  <text
+    x="170"
+    y="76"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    fill="white"
+    font-family="'Arial Black', 'Arial', 'Helvetica Neue', sans-serif"
+    font-weight="900"
+    font-size="62"
+    letter-spacing="3"
+  >עמינח</text>
+</svg>
