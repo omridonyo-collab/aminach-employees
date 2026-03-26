@@ -16,7 +16,7 @@ import { ApprovalsSection } from '@/components/approvals/ApprovalsSection'
 import { ManagerDraftSection } from '@/components/approvals/ManagerDraftSection'
 import { PreviewModal } from '@/components/preview/PreviewModal'
 import { Button } from '@/components/ui/Button'
-import { FileText, Eye, Mail, Printer, Send, CheckCircle2, RotateCcw } from 'lucide-react'
+import { FileText, Eye, Printer, CheckCircle2 } from 'lucide-react'
 import { useState, useCallback } from 'react'
 import type { ApprovalStep, FormSubmission, FormStatus } from '@/types'
 import { format } from 'date-fns'
@@ -61,7 +61,6 @@ function SuccessScreen({ info, onReset }: { info: any, onReset: () => void }) {
 export default function App() {
   const [showPreview, setShowPreview] = useState(false)
   const [isSending, setIsSending] = useState(false)
-  const [statusMsg, setStatusMsg] = useState<string | null>(null)
   const [successInfo, setSuccessInfo] = useState<any>(null)
 
   const { form, updateForm, handleSignatureSave, handleSignatureClear, resetToDraft } = useFormSubmission(urlForm ?? undefined)
@@ -89,7 +88,7 @@ export default function App() {
 
       if (newStatus === 'approved') {
         await sendHrFinalEmail(updatedForm, targetNextEmail || '')
-        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: 'HR', nextApproverEmail: targetNextEmail, formLink: encodeFormToUrl(updatedForm) })
+        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: 'HR', nextApproverEmail: targetNextEmail || '', formLink: encodeFormToUrl(updatedForm) })
       } else if (newStatus === 'pending_approval') {
         const next = steps[currentStepIndex + 1]
         await sendApprovalRequestEmail(updatedForm, next)
@@ -120,7 +119,6 @@ export default function App() {
     <div className="min-h-screen bg-slate-100" dir="rtl">
       <Header form={form} />
       <main className="mx-auto max-w-4xl px-4 py-8">
-        {statusMsg && <div className="mb-4 bg-green-50 p-3 rounded-lg text-green-800">{statusMsg}</div>}
         <FormProvider {...methods}>
           <form className="space-y-6">
             <fieldset disabled={formSectionsReadOnly} className={formSectionsReadOnly ? 'opacity-75 pointer-events-none' : ''}>
