@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { formSchema, type FormSchemaType } from '@/lib/validation'
 import { formValuesToSubmission } from '@/lib/formToSubmission'
 import { exportToPdf, printForm } from '@/lib/exportPdf'
-import { exportToExcel, exportToCsv } from '@/lib/exportCsv'
 import { useFormSubmission } from '@/hooks/useFormSubmission'
 import { MOCK_FORM } from '@/data/mockData'
 import { decodeFormFromUrl, encodeFormToUrl } from '@/lib/formUrlEncoder'
@@ -18,30 +17,11 @@ import { ManagerDraftSection } from '@/components/approvals/ManagerDraftSection'
 import { PreviewModal } from '@/components/preview/PreviewModal'
 import { Button } from '@/components/ui/Button'
 import {
-  Save, FileText, FileSpreadsheet, Eye,
-  RotateCcw, Trash2, Mail, Printer, Copy, Check,
-  CheckCircle2, Send, AlertCircle,
+  FileText, Eye, Mail, Printer, Send, CheckCircle2, RotateCcw
 } from 'lucide-react'
 import { useState, useCallback } from 'react'
 import type { ApprovalStep, FormSubmission, FormStatus } from '@/types'
 import { format } from 'date-fns'
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
-function getFirstErrorPath(obj: object, prefix = ''): string | null {
-  for (const [key, val] of Object.entries(obj)) {
-    if (val?.message) return prefix ? `${prefix}.${key}` : key
-    if (val && typeof val === 'object' && !Array.isArray(val)) {
-      const nested = getFirstErrorPath(val as object, prefix ? `${prefix}.${key}` : key)
-      if (nested) return nested
-    }
-  }
-  return null
-}
-
-function getNestedValue(obj: object, path: string): unknown {
-  return path.split('.').reduce((o: unknown, k) => (o as Record<string, unknown>)?.[k], obj)
-}
 
 // ─── init ─────────────────
 const urlForm = decodeFormFromUrl()
@@ -127,13 +107,11 @@ export default function App() {
   const [showPreview, setShowPreview] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
   const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null)
 
   const {
     form,
     updateForm,
-    handleApproval,
     handleSignatureSave,
     handleSignatureClear,
     resetToDraft,
@@ -147,6 +125,10 @@ export default function App() {
   const currentStepIndex = form.approvalSteps.findIndex((s) => s.status === 'pending')
   const formSectionsReadOnly = form.status === 'approved' || (form.status === 'pending_approval' && currentStepIndex === 2)
 
+  const getFullSubmission = useCallback(() => {
+    return formValuesToSubmission(methods.getValues(), form.approvalSteps, form.status)
+  }, [methods, form.approvalSteps, form.status])
+
   // ── handle approval ────────────────────────────────────────────────────────────
   const handleApprovalWithEmail = useCallback(
     async (
@@ -159,8 +141,7 @@ export default function App() {
       setStatusMsg(null)
 
       try {
-        const currentValues = methods.getValues()
-        const currentFieldSubmission = formValuesToSubmission(currentValues, form.approvalSteps, form.status)
+        const currentFieldSubmission = getFullSubmission()
 
         const steps: ApprovalStep[] = form.approvalSteps.map((s, idx) => {
           if (s.id === stepId) {
@@ -220,7 +201,7 @@ export default function App() {
         setIsSending(false)
       }
     },
-    [form, currentStepIndex, updateForm, methods]
+    [form, currentStepIndex, updateForm, getFullSubmission]
   )
 
   const handleSendFromManager = useCallback(
@@ -234,7 +215,7 @@ export default function App() {
             { id: 'a3', title: 'מנכ"ל', role: 'מנכ"ל', status: 'pending', managerName: 'רונן בר שלום', managerEmail: '', comment: '', signedAt: null, signatureData: null },
           ]
           const submission = formValuesToSubmission(values, freshSteps, 'pending_approval')
-          const updatedForm: FormSubmission = { ...form, ...submission, approvalSteps: freshSteps, status: 'pending_approval', updatedAt: format(new Date(), 'yyyy-MM-dd') }
+          const updatedForm: FormSubmission = { ...form, ...submission, approvalSteps: freshSteps, status: 'pending_approval' as FormStatus, updatedAt: format(new Date(), 'yyyy-MM-dd') }
           updateForm(updatedForm)
           await sendApprovalRequestEmail(updatedForm, freshSteps[1])
           setSuccessInfo({ employeeName: values.employeeDetails.employeeName, nextApproverName: deptManagerName, nextApproverEmail: deptManagerEmail, formLink: encodeFormToUrl(updatedForm) })
@@ -243,62 +224,6 @@ export default function App() {
     }, [form, methods, updateForm]
   )
 
-  const handleSaveDraft = () => {
-    const values = methods.getValues()
-    const submission = formValuesToSubmission(values, form.approvalSteps, 'draft')
-    updateForm(submission); setStatusMsg('הטיוטה נשמרה')
-  }
-
-  const handleClearForm = () => { if (confirm('לנקות טופס?')) { methods.reset(defaultValues); resetToDraft(); setStatusMsg(null); setSuccessInfo(null); } }
-  const getFullSubmission = () => formValuesToSubmission(methods.getValues(), form.approvalSteps, form.status)
   const handleExportPdf = () => exportToPdf({ ...form, ...getFullSubmission() })
   const handlePrint = () => printForm({ ...form, ...getFullSubmission() })
-  const handlePreview = () => { updateForm(getFullSubmission()); setShowPreview(true) }
-
-  const copyApprovalLink = useCallback(() => {
-    const link = encodeFormToUrl({ ...form, ...getFullSubmission() })
-    navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
-  }, [form, methods])
-
-  if (successInfo) return <SuccessScreen info={successInfo} onReset={() => { setSuccessInfo(null); methods.reset(defaultValues); resetToDraft(); }} />
-
-  return (
-    <div className="min-h-screen bg-slate-100" dir="rtl">
-      <Header form={form} />
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        {statusMsg && <div className="mb-4 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"><CheckCircle2 className="h-4 w-4" />{statusMsg}</div>}
-        <FormProvider {...methods}>
-          <form className="space-y-6">
-            <fieldset disabled={formSectionsReadOnly} className={formSectionsReadOnly ? 'pointer-events-none opacity-75' : ''}>
-              <div className="space-y-6">
-                <EmployeeDetailsSection />
-                <PerformanceScoresSection />
-                <WrittenEvaluationSection />
-                <SalarySection />
-              </div>
-            </fieldset>
-
-            {form.status === 'draft' || form.status === 'rejected' ? (
-              <ManagerDraftSection managerName={methods.watch('employeeDetails.directManagerName') ?? ''} onSubmit={handleSendFromManager} isSubmitting={isSending} />
-            ) : (
-              <ApprovalsSection 
-                formSubmission={{...form, ...getFullSubmission()}} 
-                onApprovalAction={handleApprovalWithEmail} 
-                onSignatureSave={handleSignatureSave} 
-                onSignatureClear={handleSignatureClear} 
-                isReadOnly={form.status === 'approved'} 
-              />
-            )}
-
-            <div className="flex flex-wrap gap-3 border-t border-slate-200 pt-6">
-              <Button type="button" variant="ghost" onClick={handlePreview}><Eye className="ml-2 h-4 w-4" />תצוגה מקדימה</Button>
-              <Button type="button" variant="outline" onClick={handleExportPdf}><FileText className="ml-2 h-4 w-4" />ייצא PDF</Button>
-              <Button type="button" variant="outline" onClick={handlePrint}><Printer className="ml-2 h-4 w-4" />הדפס</Button>
-            </div>
-          </form>
-        </FormProvider>
-      </main>
-      {showPreview && <PreviewModal form={{...form, ...getFullSubmission()}} onClose={() => setShowPreview(false)} />}
-    </div>
-  )
-}
+  const handlePreview = () => {
