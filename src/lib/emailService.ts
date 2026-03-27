@@ -2,7 +2,8 @@ import emailjs from '@emailjs/browser';
 import { FormSubmission, ApprovalStep } from '@/types';
 import { encodeFormToUrl } from './formUrlEncoder';
 
-const SERVICE_ID = 'service_6v8lb8u'; 
+// פרטי ההתחברות המעודכנים שלך
+const SERVICE_ID = 'service_pjriey4'; 
 const TEMPLATE_ID = 'template_9o9u06p'; 
 const PUBLIC_KEY = '5L86K9G1Oq7_XmNlI';
 const HR_EMAIL = 'romi@aminach.co.il';
@@ -16,10 +17,9 @@ export const sendApprovalRequestEmail = async (form: FormSubmission, nextStep: A
     from_name: "רומי - משאבי אנוש עמינח",
     employee_name: form.employeeDetails.employeeName,
     form_link: formLink,
-    reply_to: HR_EMAIL, 
+    reply_to: HR_EMAIL,
   };
 
-  // שליחה והחזרת הבטחה (Promise)
   return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
 };
 
