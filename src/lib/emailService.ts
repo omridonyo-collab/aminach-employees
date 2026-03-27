@@ -2,15 +2,13 @@ import emailjs from '@emailjs/browser';
 import { FormSubmission, ApprovalStep } from '@/types';
 import { encodeFormToUrl } from './formUrlEncoder';
 
-// הגדרות קבועות
 const SERVICE_ID = 'service_6v8lb8u';
 const TEMPLATE_ID = 'template_9o9u06p';
 const PUBLIC_KEY = '5L86K9G1Oq7_XmNlI';
-const HR_EMAIL = 'romi@aminach.co.il'; // המייל של רומי
+const HR_EMAIL = 'romi@aminach.co.il';
 
 export const sendApprovalRequestEmail = async (form: FormSubmission, nextStep: ApprovalStep) => {
   const formLink = encodeFormToUrl(form);
-
   const templateParams = {
     to_email: nextStep.managerEmail,
     to_name: nextStep.managerName || nextStep.title,
@@ -19,25 +17,22 @@ export const sendApprovalRequestEmail = async (form: FormSubmission, nextStep: A
     subject: `אישור נדרש: הערכת עובד עבור ${form.employeeDetails.employeeName}`,
     message: `שלום, נדרש אישורך לטופס הערכת עובד ועדכון שכר.`,
     form_link: formLink,
-    reply_to: HR_EMAIL, // המייל שיופיע כשמשיבים
+    reply_to: HR_EMAIL,
   };
-
   return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
 };
 
 export const sendHrFinalEmail = async (form: FormSubmission) => {
   const formLink = encodeFormToUrl(form);
-
   const templateParams = {
     to_email: HR_EMAIL,
     to_name: "רומי - משאבי אנוש",
     from_name: "מערכת הערכת עובדים",
     employee_name: form.employeeDetails.employeeName,
     subject: `טופס סופי מאושר: ${form.employeeDetails.employeeName}`,
-    message: `כל האישורים התקבלו. מצורף קישור לטופס המלא הכולל את כל החתימות והסיכומים.`,
+    message: `כל האישורים התקבלו. הטופס חתום ומוכן לתיוק.`,
     form_link: formLink,
     reply_to: HR_EMAIL,
   };
-
   return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
 };
