@@ -5,7 +5,7 @@ import { formValuesToSubmission } from '@/lib/formToSubmission'
 import { exportToPdf, printForm } from '@/lib/exportPdf'
 import { useFormSubmission } from '@/hooks/useFormSubmission'
 import { MOCK_FORM } from '@/data/mockData'
-import { decodeFormFromUrl } from '@/lib/formUrlEncoder'
+import { decodeFormFromUrl, encodeFormToUrl } from '@/lib/formUrlEncoder'
 import { sendApprovalRequestEmail, sendHrFinalEmail } from '@/lib/emailService'
 import { Header } from '@/components/layout/Header'
 import { EmployeeDetailsSection } from '@/components/form/EmployeeDetailsSection'
@@ -55,7 +55,6 @@ export default function App() {
         if (idx === currentStepIndex + 1 && targetNextEmail) return { ...s, managerEmail: targetNextEmail }
         return s
       });
-
       const allApproved = steps.every(s => s.status === 'approved');
       const newStatus: FormStatus = steps.some(s => s.status === 'rejected') ? 'rejected' : (allApproved ? 'approved' : 'pending_approval');
       const updatedForm = { ...form, ...getFullSubmission(), approvalSteps: steps, status: newStatus };
@@ -65,11 +64,10 @@ export default function App() {
       } else if (newStatus === 'pending_approval') {
         await sendApprovalRequestEmail(updatedForm, steps[currentStepIndex + 1]);
       }
-
       updateForm(updatedForm);
       setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName });
     } catch (error) {
-      setErrorMessage("שגיאה בשליחת המייל. נסה שוב או בדוק את החיבור.");
+      setErrorMessage("שגיאה בתקשורת מול שרת המיילים.");
     } finally { setIsSending(false); }
   }, [form, currentStepIndex, updateForm, getFullSubmission]);
 
@@ -84,21 +82,20 @@ export default function App() {
           { id: 'a3', title: 'מנכ"ל', role: 'מנכ"ל', status: 'pending', managerName: 'רונן בר שלום', managerEmail: 'ronen@aminach.co.il', comment: '', signedAt: null, signatureData: null },
         ];
         const updated = { ...form, ...formValuesToSubmission(values, freshSteps, 'pending_approval'), approvalSteps: freshSteps, status: 'pending_approval' as FormStatus };
-        
         await sendApprovalRequestEmail(updated, freshSteps[1]);
         updateForm(updated);
         setSuccessInfo({ employeeName: values.employeeDetails.employeeName });
       } catch (error) {
-        setErrorMessage("נכשלה שליחת המייל למנהל הבא.");
+        setErrorMessage("נכשלה שליחת המייל הראשוני.");
       } finally { setIsSending(false); }
     })();
-  }
+  };
 
   if (successInfo) return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-lg bg-white shadow-xl rounded-2xl p-8 text-center border-t-8 border-green-500">
         <CheckCircle2 className="h-20 w-20 text-green-500 mx-auto mb-4" />
-        <h2 className="text-3xl font-bold text-slate-800 mb-2">נחתם ונשלח!</h2>
+        <h2 className="text-3xl font-bold mb-2">נחתם ונשלח!</h2>
         <p className="text-slate-600 mb-8 text-lg">הטופס של <strong>{successInfo.employeeName}</strong> הועבר בהצלחה.</p>
         <Button onClick={() => { setSuccessInfo(null); methods.reset(); resetToDraft(); }} variant="primary" className="w-full text-lg h-12">סגור</Button>
       </div>
