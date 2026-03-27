@@ -21,8 +21,6 @@ import { useState, useCallback } from 'react'
 import type { ApprovalStep, FormSubmission, FormStatus } from '@/types'
 import { format } from 'date-fns'
 
-const HR_EMAIL = 'romi@aminach.co.il';
-
 const urlForm = decodeFormFromUrl()
 const initialForm: FormSubmission = urlForm ?? { ...MOCK_FORM, id: `form-${Date.now()}` }
 const defaultValues: FormSchemaType = {
@@ -39,8 +37,8 @@ function SuccessScreen({ info, onReset }: { info: any, onReset: () => void }) {
   }
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col" dir="rtl">
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-3">
-        <h1 className="text-xl font-bold text-aminach-primary">עמינח - סיום תהליך</h1>
+      <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-3 text-aminach-primary font-bold">
+        עמינח - מערכת הערכת עובדים
       </div>
       <main className="flex-1 flex items-start justify-center px-4 py-12">
         <div className="w-full max-w-lg rounded-2xl bg-white shadow-lg p-8 text-center">
@@ -89,11 +87,11 @@ export default function App() {
 
       if (newStatus === 'approved') {
         await sendHrFinalEmail(updatedForm)
-        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: 'רומי (משאבי אנוש)', nextApproverEmail: HR_EMAIL, formLink: encodeFormToUrl(updatedForm) })
+        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: 'רומי (משאבי אנוש)', formLink: encodeFormToUrl(updatedForm) })
       } else if (newStatus === 'pending_approval') {
         const next = steps[currentStepIndex + 1]
         await sendApprovalRequestEmail(updatedForm, next)
-        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: next.managerName || next.title, nextApproverEmail: next.managerEmail, formLink: encodeFormToUrl(updatedForm) })
+        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: next.managerName || next.title, formLink: encodeFormToUrl(updatedForm) })
       }
     } finally { setIsSending(false) }
   }, [form, currentStepIndex, updateForm, getFullSubmission])
@@ -109,7 +107,7 @@ export default function App() {
       const updated = { ...form, ...formValuesToSubmission(values, freshSteps, 'pending_approval'), approvalSteps: freshSteps, status: 'pending_approval' as FormStatus }
       updateForm(updated)
       await sendApprovalRequestEmail(updated, freshSteps[1])
-      setSuccessInfo({ employeeName: values.employeeDetails.employeeName, nextApproverName: name, nextApproverEmail: email, formLink: encodeFormToUrl(updated) })
+      setSuccessInfo({ employeeName: values.employeeDetails.employeeName, nextApproverName: name, formLink: encodeFormToUrl(updated) })
       setIsSending(false)
     })()
   }
