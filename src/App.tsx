@@ -5,7 +5,7 @@ import { formValuesToSubmission } from '@/lib/formToSubmission'
 import { exportToPdf, printForm } from '@/lib/exportPdf'
 import { useFormSubmission } from '@/hooks/useFormSubmission'
 import { MOCK_FORM } from '@/data/mockData'
-import { decodeFormFromUrl, encodeFormToUrl } from '@/lib/formUrlEncoder'
+import { decodeFormFromUrl } from '@/lib/formUrlEncoder'
 import { sendApprovalRequestEmail, sendHrFinalEmail } from '@/lib/emailService'
 import { Header } from '@/components/layout/Header'
 import { EmployeeDetailsSection } from '@/components/form/EmployeeDetailsSection'
@@ -33,7 +33,7 @@ const defaultValues: FormSchemaType = {
 export default function App() {
   const [showPreview, setShowPreview] = useState(false)
   const [isSending, setIsSending] = useState(false)
-  const [successInfo, setSuccessInfo] = useState<any>(null)
+  const [successInfo, setSuccessInfo] = useState<{ employeeName: string } | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const { form, updateForm, handleSignatureSave, handleSignatureClear, resetToDraft } = useFormSubmission(urlForm ?? undefined)
@@ -69,7 +69,7 @@ export default function App() {
       updateForm(updatedForm);
       setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName });
     } catch (error) {
-      setErrorMessage("שגיאה בשליחת המייל. וודא שהגדרת את ה-Service ב-EmailJS נכון.");
+      setErrorMessage("שגיאה בשליחת המייל. נסה שוב או בדוק את החיבור.");
     } finally { setIsSending(false); }
   }, [form, currentStepIndex, updateForm, getFullSubmission]);
 
