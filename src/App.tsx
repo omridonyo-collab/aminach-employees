@@ -21,6 +21,8 @@ import { useState, useCallback } from 'react'
 import type { ApprovalStep, FormSubmission, FormStatus } from '@/types'
 import { format } from 'date-fns'
 
+const HR_EMAIL = 'romi@aminach.co.il';
+
 const urlForm = decodeFormFromUrl()
 const initialForm: FormSubmission = urlForm ?? { ...MOCK_FORM, id: `form-${Date.now()}` }
 const defaultValues: FormSchemaType = {
@@ -38,19 +40,18 @@ function SuccessScreen({ info, onReset }: { info: any, onReset: () => void }) {
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col" dir="rtl">
       <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-3">
-        <h1 className="text-xl font-bold text-aminach-primary">המלצה לעדכון שכר – עמינח</h1>
+        <h1 className="text-xl font-bold text-aminach-primary">עמינח - סיום תהליך</h1>
       </div>
       <main className="flex-1 flex items-start justify-center px-4 py-12">
         <div className="w-full max-w-lg rounded-2xl bg-white shadow-lg p-8 text-center">
           <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">הפעולה בוצעה!</h2>
-          <p className="text-slate-500 mb-6">הטופס עבור {info.employeeName} עודכן.</p>
+          <h2 className="text-2xl font-bold mb-2">נשלח בהצלחה!</h2>
+          <p className="text-slate-500 mb-6">הטופס של {info.employeeName} הועבר ל{info.nextApproverName}.</p>
           <div className="space-y-3">
             <Button onClick={copyLink} variant={copied ? "primary" : "outline"} className="w-full">
-              {copied ? "הקישור הועתק!" : "העתק קישור למאשר"}
+              {copied ? "הקישור הועתק!" : "העתק קישור לגיבוי"}
             </Button>
-            <Button onClick={() => window.open(`mailto:${info.nextApproverEmail}`)} className="w-full">שלח מייל ל-{info.nextApproverName}</Button>
-            <Button onClick={onReset} variant="ghost" className="w-full">חזרה לתפריט</Button>
+            <Button onClick={onReset} variant="ghost" className="w-full">חזרה לדף הבית</Button>
           </div>
         </div>
       </main>
@@ -87,12 +88,12 @@ export default function App() {
       updateForm(updatedForm)
 
       if (newStatus === 'approved') {
-        await sendHrFinalEmail(updatedForm, targetNextEmail || '')
-        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: 'HR', nextApproverEmail: targetNextEmail || '', formLink: encodeFormToUrl(updatedForm) })
+        await sendHrFinalEmail(updatedForm)
+        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: 'רומי (משאבי אנוש)', nextApproverEmail: HR_EMAIL, formLink: encodeFormToUrl(updatedForm) })
       } else if (newStatus === 'pending_approval') {
         const next = steps[currentStepIndex + 1]
         await sendApprovalRequestEmail(updatedForm, next)
-        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: next.managerName, nextApproverEmail: targetNextEmail || next.managerEmail, formLink: encodeFormToUrl(updatedForm) })
+        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: next.managerName || next.title, nextApproverEmail: next.managerEmail, formLink: encodeFormToUrl(updatedForm) })
       }
     } finally { setIsSending(false) }
   }, [form, currentStepIndex, updateForm, getFullSubmission])
@@ -103,7 +104,7 @@ export default function App() {
       const freshSteps: ApprovalStep[] = [
         { id: 'a1', title: 'מנהל ישיר', role: 'מנהל ישיר', status: 'approved', managerName: values.employeeDetails.directManagerName, managerEmail: '', comment: '', signedAt: format(new Date(), 'yyyy-MM-dd HH:mm'), signatureData: sig },
         { id: 'a2', title: 'מנהל בכיר', role: 'מנהל בכיר', status: 'pending', managerName: name, managerEmail: email, comment: '', signedAt: null, signatureData: null },
-        { id: 'a3', title: 'מנכ"ל', role: 'מנכ"ל', status: 'pending', managerName: 'רונן בר שלום', managerEmail: '', comment: '', signedAt: null, signatureData: null },
+        { id: 'a3', title: 'מנכ"ל', role: 'מנכ"ל', status: 'pending', managerName: 'רונן בר שלום', managerEmail: 'ronen@aminach.co.il', comment: '', signedAt: null, signatureData: null },
       ]
       const updated = { ...form, ...formValuesToSubmission(values, freshSteps, 'pending_approval'), approvalSteps: freshSteps, status: 'pending_approval' as FormStatus }
       updateForm(updated)
