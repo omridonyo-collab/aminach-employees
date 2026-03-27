@@ -60,7 +60,6 @@ export default function App() {
       const newStatus: FormStatus = steps.some(s => s.status === 'rejected') ? 'rejected' : (allApproved ? 'approved' : 'pending_approval');
       const updatedForm = { ...form, ...getFullSubmission(), approvalSteps: steps, status: newStatus };
       
-      // שליחת מייל ורק אז עדכון ממשק
       if (newStatus === 'approved') {
         await sendHrFinalEmail(updatedForm);
       } else if (newStatus === 'pending_approval') {
@@ -68,10 +67,9 @@ export default function App() {
       }
 
       updateForm(updatedForm);
-      setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, formLink: encodeFormToUrl(updatedForm) });
+      setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName });
     } catch (error) {
-      console.error(error);
-      setErrorMessage("שגיאה בשליחת המייל. וודא שאתה מחובר לאינטרנט ונסה שוב.");
+      setErrorMessage("שגיאה בשליחת המייל. וודא שהגדרת את ה-Service ב-EmailJS נכון.");
     } finally { setIsSending(false); }
   }, [form, currentStepIndex, updateForm, getFullSubmission]);
 
@@ -89,9 +87,9 @@ export default function App() {
         
         await sendApprovalRequestEmail(updated, freshSteps[1]);
         updateForm(updated);
-        setSuccessInfo({ employeeName: values.employeeDetails.employeeName, formLink: encodeFormToUrl(updated) });
+        setSuccessInfo({ employeeName: values.employeeDetails.employeeName });
       } catch (error) {
-        setErrorMessage("נכשלה שליחת המייל למנהל הבא. בדוק את הכתובת.");
+        setErrorMessage("נכשלה שליחת המייל למנהל הבא.");
       } finally { setIsSending(false); }
     })();
   }
@@ -100,9 +98,9 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-lg bg-white shadow-xl rounded-2xl p-8 text-center border-t-8 border-green-500">
         <CheckCircle2 className="h-20 w-20 text-green-500 mx-auto mb-4" />
-        <h2 className="text-3xl font-bold text-slate-800 mb-2">הטופס נחתם ונשלח!</h2>
-        <p className="text-slate-600 mb-8 text-lg">הדיווח עבור <strong>{successInfo.employeeName}</strong> הועבר בהצלחה.</p>
-        <Button onClick={() => { setSuccessInfo(null); methods.reset(); resetToDraft(); }} variant="primary" className="w-full text-lg h-12">סגור וחזור</Button>
+        <h2 className="text-3xl font-bold text-slate-800 mb-2">נחתם ונשלח!</h2>
+        <p className="text-slate-600 mb-8 text-lg">הטופס של <strong>{successInfo.employeeName}</strong> הועבר בהצלחה.</p>
+        <Button onClick={() => { setSuccessInfo(null); methods.reset(); resetToDraft(); }} variant="primary" className="w-full text-lg h-12">סגור</Button>
       </div>
     </div>
   );
@@ -112,7 +110,7 @@ export default function App() {
       <Header form={form} />
       <main className="mx-auto max-w-4xl px-4 py-8">
         {errorMessage && (
-          <div className="mb-6 bg-red-50 border-r-4 border-red-500 p-4 flex items-center gap-3 text-red-800 rounded shadow-sm">
+          <div className="mb-6 bg-red-50 border-r-4 border-red-500 p-4 flex items-center gap-3 text-red-800 rounded">
             <AlertTriangle className="h-5 w-5" /> {errorMessage}
           </div>
         )}
@@ -138,7 +136,7 @@ export default function App() {
       {isSending && (
         <div className="fixed inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center z-50">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-aminach-primary mb-4"></div>
-          <p className="font-bold text-aminach-primary text-xl">שולח אישורים במייל, נא להמתין...</p>
+          <p className="font-bold text-aminach-primary text-xl">שולח אישורים, נא להמתין...</p>
         </div>
       )}
     </div>
