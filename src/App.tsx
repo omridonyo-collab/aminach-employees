@@ -16,7 +16,7 @@ import { ApprovalsSection } from '@/components/approvals/ApprovalsSection'
 import { ManagerDraftSection } from '@/components/approvals/ManagerDraftSection'
 import { PreviewModal } from '@/components/preview/PreviewModal'
 import { Button } from '@/components/ui/Button'
-import { FileText, Eye, Printer, CheckCircle2 } from 'lucide-react'
+import { FileText, Eye, Printer, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useState, useCallback } from 'react'
 import type { ApprovalStep, FormSubmission, FormStatus } from '@/types'
 import { format } from 'date-fns'
@@ -30,37 +30,11 @@ const defaultValues: FormSchemaType = {
   salaryRecommendation: initialForm.salaryRecommendation,
 }
 
-function SuccessScreen({ info, onReset }: { info: any, onReset: () => void }) {
-  const [copied, setCopied] = useState(false)
-  const copyLink = () => {
-    navigator.clipboard?.writeText(info.formLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 3000); })
-  }
-  return (
-    <div className="min-h-screen bg-slate-100 flex flex-col" dir="rtl">
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-3 text-aminach-primary font-bold">
-        עמינח - מערכת הערכת עובדים
-      </div>
-      <main className="flex-1 flex items-start justify-center px-4 py-12">
-        <div className="w-full max-w-lg rounded-2xl bg-white shadow-lg p-8 text-center">
-          <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">נשלח בהצלחה!</h2>
-          <p className="text-slate-500 mb-6">הטופס של {info.employeeName} הועבר ל{info.nextApproverName}.</p>
-          <div className="space-y-3">
-            <Button onClick={copyLink} variant={copied ? "primary" : "outline"} className="w-full">
-              {copied ? "הקישור הועתק!" : "העתק קישור לגיבוי"}
-            </Button>
-            <Button onClick={onReset} variant="ghost" className="w-full">חזרה לדף הבית</Button>
-          </div>
-        </div>
-      </main>
-    </div>
-  )
-}
-
 export default function App() {
   const [showPreview, setShowPreview] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [successInfo, setSuccessInfo] = useState<any>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const { form, updateForm, handleSignatureSave, handleSignatureClear, resetToDraft } = useFormSubmission(urlForm ?? undefined)
   const methods = useForm<FormSchemaType>({ resolver: zodResolver(formSchema), defaultValues })
@@ -73,54 +47,78 @@ export default function App() {
   }, [methods, form.approvalSteps, form.status])
 
   const handleApprovalWithEmail = useCallback(async (stepId: string, status: 'approved' | 'rejected', comment?: string, targetNextEmail?: string) => {
-    setIsSending(true)
+    setIsSending(true);
+    setErrorMessage(null);
     try {
       const steps = form.approvalSteps.map((s, idx) => {
         if (s.id === stepId) return { ...s, status, comment: comment ?? s.comment, signedAt: format(new Date(), 'yyyy-MM-dd HH:mm') }
         if (idx === currentStepIndex + 1 && targetNextEmail) return { ...s, managerEmail: targetNextEmail }
         return s
-      })
-      const allApproved = steps.every(s => s.status === 'approved')
-      const newStatus: FormStatus = steps.some(s => s.status === 'rejected') ? 'rejected' : (allApproved ? 'approved' : 'pending_approval')
-      const updatedForm = { ...form, ...getFullSubmission(), approvalSteps: steps, status: newStatus }
-      updateForm(updatedForm)
+      });
 
+      const allApproved = steps.every(s => s.status === 'approved');
+      const newStatus: FormStatus = steps.some(s => s.status === 'rejected') ? 'rejected' : (allApproved ? 'approved' : 'pending_approval');
+      const updatedForm = { ...form, ...getFullSubmission(), approvalSteps: steps, status: newStatus };
+      
+      // שליחת מייל ורק אז עדכון ממשק
       if (newStatus === 'approved') {
-        await sendHrFinalEmail(updatedForm)
-        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: 'רומי (משאבי אנוש)', formLink: encodeFormToUrl(updatedForm) })
+        await sendHrFinalEmail(updatedForm);
       } else if (newStatus === 'pending_approval') {
-        const next = steps[currentStepIndex + 1]
-        await sendApprovalRequestEmail(updatedForm, next)
-        setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, nextApproverName: next.managerName || next.title, formLink: encodeFormToUrl(updatedForm) })
+        await sendApprovalRequestEmail(updatedForm, steps[currentStepIndex + 1]);
       }
-    } finally { setIsSending(false) }
-  }, [form, currentStepIndex, updateForm, getFullSubmission])
+
+      updateForm(updatedForm);
+      setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName, formLink: encodeFormToUrl(updatedForm) });
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("שגיאה בשליחת המייל. וודא שאתה מחובר לאינטרנט ונסה שוב.");
+    } finally { setIsSending(false); }
+  }, [form, currentStepIndex, updateForm, getFullSubmission]);
 
   const handleSendFromManager = (sig: string, name: string, email: string) => {
     methods.handleSubmit(async (values) => {
-      setIsSending(true)
-      const freshSteps: ApprovalStep[] = [
-        { id: 'a1', title: 'מנהל ישיר', role: 'מנהל ישיר', status: 'approved', managerName: values.employeeDetails.directManagerName, managerEmail: '', comment: '', signedAt: format(new Date(), 'yyyy-MM-dd HH:mm'), signatureData: sig },
-        { id: 'a2', title: 'מנהל בכיר', role: 'מנהל בכיר', status: 'pending', managerName: name, managerEmail: email, comment: '', signedAt: null, signatureData: null },
-        { id: 'a3', title: 'מנכ"ל', role: 'מנכ"ל', status: 'pending', managerName: 'רונן בר שלום', managerEmail: 'ronen@aminach.co.il', comment: '', signedAt: null, signatureData: null },
-      ]
-      const updated = { ...form, ...formValuesToSubmission(values, freshSteps, 'pending_approval'), approvalSteps: freshSteps, status: 'pending_approval' as FormStatus }
-      updateForm(updated)
-      await sendApprovalRequestEmail(updated, freshSteps[1])
-      setSuccessInfo({ employeeName: values.employeeDetails.employeeName, nextApproverName: name, formLink: encodeFormToUrl(updated) })
-      setIsSending(false)
-    })()
+      setIsSending(true);
+      setErrorMessage(null);
+      try {
+        const freshSteps: ApprovalStep[] = [
+          { id: 'a1', title: 'מנהל ישיר', role: 'מנהל ישיר', status: 'approved', managerName: values.employeeDetails.directManagerName, managerEmail: '', comment: '', signedAt: format(new Date(), 'yyyy-MM-dd HH:mm'), signatureData: sig },
+          { id: 'a2', title: 'מנהל בכיר', role: 'מנהל בכיר', status: 'pending', managerName: name, managerEmail: email, comment: '', signedAt: null, signatureData: null },
+          { id: 'a3', title: 'מנכ"ל', role: 'מנכ"ל', status: 'pending', managerName: 'רונן בר שלום', managerEmail: 'ronen@aminach.co.il', comment: '', signedAt: null, signatureData: null },
+        ];
+        const updated = { ...form, ...formValuesToSubmission(values, freshSteps, 'pending_approval'), approvalSteps: freshSteps, status: 'pending_approval' as FormStatus };
+        
+        await sendApprovalRequestEmail(updated, freshSteps[1]);
+        updateForm(updated);
+        setSuccessInfo({ employeeName: values.employeeDetails.employeeName, formLink: encodeFormToUrl(updated) });
+      } catch (error) {
+        setErrorMessage("נכשלה שליחת המייל למנהל הבא. בדוק את הכתובת.");
+      } finally { setIsSending(false); }
+    })();
   }
 
-  if (successInfo) return <SuccessScreen info={successInfo} onReset={() => { setSuccessInfo(null); methods.reset(); resetToDraft(); }} />
+  if (successInfo) return (
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4" dir="rtl">
+      <div className="w-full max-w-lg bg-white shadow-xl rounded-2xl p-8 text-center border-t-8 border-green-500">
+        <CheckCircle2 className="h-20 w-20 text-green-500 mx-auto mb-4" />
+        <h2 className="text-3xl font-bold text-slate-800 mb-2">הטופס נחתם ונשלח!</h2>
+        <p className="text-slate-600 mb-8 text-lg">הדיווח עבור <strong>{successInfo.employeeName}</strong> הועבר בהצלחה.</p>
+        <Button onClick={() => { setSuccessInfo(null); methods.reset(); resetToDraft(); }} variant="primary" className="w-full text-lg h-12">סגור וחזור</Button>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-slate-100" dir="rtl">
+    <div className="min-h-screen bg-slate-100 pb-20" dir="rtl">
       <Header form={form} />
       <main className="mx-auto max-w-4xl px-4 py-8">
+        {errorMessage && (
+          <div className="mb-6 bg-red-50 border-r-4 border-red-500 p-4 flex items-center gap-3 text-red-800 rounded shadow-sm">
+            <AlertTriangle className="h-5 w-5" /> {errorMessage}
+          </div>
+        )}
         <FormProvider {...methods}>
           <form className="space-y-6">
-            <fieldset disabled={formSectionsReadOnly} className={formSectionsReadOnly ? 'opacity-75 pointer-events-none' : ''}>
+            <fieldset disabled={formSectionsReadOnly || isSending} className={formSectionsReadOnly ? 'opacity-75 pointer-events-none' : ''}>
               <EmployeeDetailsSection /><PerformanceScoresSection /><WrittenEvaluationSection /><SalarySection />
             </fieldset>
             {form.status === 'draft' || form.status === 'rejected' ? (
@@ -128,7 +126,7 @@ export default function App() {
             ) : (
               <ApprovalsSection formSubmission={{...form, ...getFullSubmission()}} onApprovalAction={handleApprovalWithEmail} onSignatureSave={handleSignatureSave} onSignatureClear={handleSignatureClear} isReadOnly={form.status === 'approved'} />
             )}
-            <div className="flex gap-3 border-t pt-6">
+            <div className="flex gap-4 border-t pt-8">
               <Button type="button" variant="ghost" onClick={() => setShowPreview(true)}><Eye className="ml-2 h-4 w-4" />תצוגה מקדימה</Button>
               <Button type="button" variant="outline" onClick={() => exportToPdf({...form, ...getFullSubmission()})}><FileText className="ml-2 h-4 w-4" />PDF</Button>
               <Button type="button" variant="outline" onClick={() => printForm({...form, ...getFullSubmission()})}><Printer className="ml-2 h-4 w-4" />הדפס</Button>
@@ -137,6 +135,12 @@ export default function App() {
         </FormProvider>
       </main>
       {showPreview && <PreviewModal form={{...form, ...getFullSubmission()}} onClose={() => setShowPreview(false)} />}
+      {isSending && (
+        <div className="fixed inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-aminach-primary mb-4"></div>
+          <p className="font-bold text-aminach-primary text-xl">שולח אישורים במייל, נא להמתין...</p>
+        </div>
+      )}
     </div>
-  )
+  );
 }
