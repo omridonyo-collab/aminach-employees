@@ -2,37 +2,54 @@ import emailjs from '@emailjs/browser';
 import { FormSubmission, ApprovalStep } from '@/types';
 import { encodeFormToUrl } from './formUrlEncoder';
 
-const SERVICE_ID = 'service_6v8lb8u';
-const TEMPLATE_ID = 'template_9o9u06p';
+// פרטי התחברות - וודא שהם זהים ל-Dashboard שלך
+const SERVICE_ID = 'service_6v8lb8u'; 
+const TEMPLATE_ID = 'template_9o9u06p'; 
 const PUBLIC_KEY = '5L86K9G1Oq7_XmNlI';
 const HR_EMAIL = 'romi@aminach.co.il';
 
 export const sendApprovalRequestEmail = async (form: FormSubmission, nextStep: ApprovalStep) => {
   const formLink = encodeFormToUrl(form);
+  
   const templateParams = {
     to_email: nextStep.managerEmail,
     to_name: nextStep.managerName || nextStep.title,
-    from_name: "מערכת הערכת עובדים - עמינח",
+    from_name: "רומי - משאבי אנוש עמינח", // הזהות המוצגת
     employee_name: form.employeeDetails.employeeName,
-    subject: `אישור נדרש: הערכת עובד עבור ${form.employeeDetails.employeeName}`,
-    message: `שלום, נדרש אישורך לטופס הערכת עובד ועדכון שכר.`,
     form_link: formLink,
-    reply_to: HR_EMAIL,
+    reply_to: HR_EMAIL, 
   };
-  return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+
+  console.log("נסיו לשלוח מייל ל:", nextStep.managerEmail);
+
+  try {
+    const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+    console.log("מייל נשלח בהצלחה!", result.status, result.text);
+    return result;
+  } catch (error) {
+    console.error("שגיאה קריטית בשליחת מייל:", error);
+    throw error;
+  }
 };
 
 export const sendHrFinalEmail = async (form: FormSubmission) => {
   const formLink = encodeFormToUrl(form);
+  
   const templateParams = {
     to_email: HR_EMAIL,
-    to_name: "רומי - משאבי אנוש",
-    from_name: "מערכת הערכת עובדים",
+    to_name: "רומי",
+    from_name: "מערכת אישורי שכר",
     employee_name: form.employeeDetails.employeeName,
-    subject: `טופס סופי מאושר: ${form.employeeDetails.employeeName}`,
-    message: `כל האישורים התקבלו. הטופס חתום ומוכן לתיוק.`,
     form_link: formLink,
     reply_to: HR_EMAIL,
   };
-  return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+
+  try {
+    const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+    console.log("מייל סופי נשלח לרומי!", result.status, result.text);
+    return result;
+  } catch (error) {
+    console.error("שגיאה בשליחת מייל סופי:", error);
+    throw error;
+  }
 };
