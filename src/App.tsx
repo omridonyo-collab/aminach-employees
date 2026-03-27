@@ -5,7 +5,7 @@ import { formValuesToSubmission } from '@/lib/formToSubmission'
 import { exportToPdf, printForm } from '@/lib/exportPdf'
 import { useFormSubmission } from '@/hooks/useFormSubmission'
 import { MOCK_FORM } from '@/data/mockData'
-import { decodeFormFromUrl, encodeFormToUrl } from '@/lib/formUrlEncoder'
+import { decodeFormFromUrl } from '@/lib/formUrlEncoder'
 import { sendApprovalRequestEmail, sendHrFinalEmail } from '@/lib/emailService'
 import { Header } from '@/components/layout/Header'
 import { EmployeeDetailsSection } from '@/components/form/EmployeeDetailsSection'
@@ -67,7 +67,7 @@ export default function App() {
       updateForm(updatedForm);
       setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName });
     } catch (error) {
-      setErrorMessage("שגיאה בתקשורת מול שרת המיילים.");
+      setErrorMessage("שגיאה בתקשורת מול שרת המיילים. נסה שוב.");
     } finally { setIsSending(false); }
   }, [form, currentStepIndex, updateForm, getFullSubmission]);
 
@@ -86,7 +86,7 @@ export default function App() {
         updateForm(updated);
         setSuccessInfo({ employeeName: values.employeeDetails.employeeName });
       } catch (error) {
-        setErrorMessage("נכשלה שליחת המייל הראשוני.");
+        setErrorMessage("נכשלה שליחת המייל הראשוני למנהל.");
       } finally { setIsSending(false); }
     })();
   };
@@ -95,15 +95,15 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-lg bg-white shadow-xl rounded-2xl p-8 text-center border-t-8 border-green-500">
         <CheckCircle2 className="h-20 w-20 text-green-500 mx-auto mb-4" />
-        <h2 className="text-3xl font-bold mb-2">נחתם ונשלח!</h2>
-        <p className="text-slate-600 mb-8 text-lg">הטופס של <strong>{successInfo.employeeName}</strong> הועבר בהצלחה.</p>
-        <Button onClick={() => { setSuccessInfo(null); methods.reset(); resetToDraft(); }} variant="primary" className="w-full text-lg h-12">סגור</Button>
+        <h2 className="text-3xl font-bold mb-2 text-slate-800 font-sans">נחתם ונשלח!</h2>
+        <p className="text-slate-600 mb-8 text-lg font-sans">הטופס של <strong>{successInfo.employeeName}</strong> הועבר בהצלחה.</p>
+        <Button onClick={() => { setSuccessInfo(null); methods.reset(); resetToDraft(); }} variant="primary" className="w-full text-lg h-12 font-bold">סגור וחזור</Button>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-100 pb-20" dir="rtl">
+    <div className="min-h-screen bg-slate-100 pb-20 font-sans" dir="rtl">
       <Header form={form} />
       <main className="mx-auto max-w-4xl px-4 py-8">
         {errorMessage && (
@@ -133,7 +133,7 @@ export default function App() {
       {isSending && (
         <div className="fixed inset-0 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center z-50">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-aminach-primary mb-4"></div>
-          <p className="font-bold text-aminach-primary text-xl">שולח אישורים, נא להמתין...</p>
+          <p className="font-bold text-aminach-primary text-xl">מעבד את הבקשה, נא להמתין...</p>
         </div>
       )}
     </div>
