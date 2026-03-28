@@ -2,9 +2,11 @@ import emailjs from '@emailjs/browser';
 import { FormSubmission, ApprovalStep } from '@/types';
 import { encodeFormToUrl } from './formUrlEncoder';
 
+// המזהים המדויקים מהתמונות שלך:
 const SERVICE_ID = 'service_pjriey4'; 
-const TEMPLATE_ID = 'template_9o9u06p'; 
-const PUBLIC_KEY = '5L86K9G1Oq7_XmNlI';
+const TEMPLATE_ID_APPROVAL = 'template_5oucpjl'; // מזהה לבקשת אישור מנהל
+const TEMPLATE_ID_FINAL = 'template_hhghr3v';    // מזהה למייל סופי למשאבי אנוש
+const PUBLIC_KEY = '5L86K9G1Oq7_XmNlI';          // וודא שזה ה-Public Key מה-Account
 const HR_EMAIL = 'romi@aminach.co.il';
 
 export const sendApprovalRequestEmail = async (form: FormSubmission, nextStep: ApprovalStep) => {
@@ -17,7 +19,8 @@ export const sendApprovalRequestEmail = async (form: FormSubmission, nextStep: A
     form_link: formLink,
     reply_to: HR_EMAIL,
   };
-  return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+  // משתמש ב-TEMPLATE_ID_APPROVAL
+  return emailjs.send(SERVICE_ID, TEMPLATE_ID_APPROVAL, templateParams, PUBLIC_KEY);
 };
 
 export const sendHrFinalEmail = async (form: FormSubmission) => {
@@ -30,5 +33,6 @@ export const sendHrFinalEmail = async (form: FormSubmission) => {
     form_link: formLink,
     reply_to: HR_EMAIL,
   };
-  return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+  // משתמש ב-TEMPLATE_ID_FINAL
+  return emailjs.send(SERVICE_ID, TEMPLATE_ID_FINAL, templateParams, PUBLIC_KEY);
 };
