@@ -67,7 +67,7 @@ export default function App() {
       updateForm(updatedForm);
       setSuccessInfo({ employeeName: updatedForm.employeeDetails.employeeName });
     } catch (error) {
-      setErrorMessage("שגיאה בתקשורת מול שרת המיילים. נסה שוב.");
+      setErrorMessage("שגיאה בשליחת המייל. נסה שוב.");
     } finally { setIsSending(false); }
   }, [form, currentStepIndex, updateForm, getFullSubmission]);
 
@@ -95,9 +95,9 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-lg bg-white shadow-xl rounded-2xl p-8 text-center border-t-8 border-green-500">
         <CheckCircle2 className="h-20 w-20 text-green-500 mx-auto mb-4" />
-        <h2 className="text-3xl font-bold mb-2 text-slate-800 font-sans">נחתם ונשלח!</h2>
-        <p className="text-slate-600 mb-8 text-lg font-sans">הטופס של <strong>{successInfo.employeeName}</strong> הועבר בהצלחה.</p>
-        <Button onClick={() => { setSuccessInfo(null); methods.reset(); resetToDraft(); }} variant="primary" className="w-full text-lg h-12 font-bold">סגור וחזור</Button>
+        <h2 className="text-3xl font-bold mb-2 text-slate-800">נחתם ונשלח!</h2>
+        <p className="text-slate-600 mb-8 text-lg">הטופס של <strong>{successInfo.employeeName}</strong> הועבר בהצלחה.</p>
+        <Button onClick={() => { setSuccessInfo(null); methods.reset(); resetToDraft(); }} variant="primary" className="w-full text-lg h-12">סגור וחזור</Button>
       </div>
     </div>
   );
