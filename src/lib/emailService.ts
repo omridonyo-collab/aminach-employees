@@ -67,8 +67,6 @@ async function openMailtoWithLink(
 
 /**
  * שולח מייל לאישור למנהל הבא בשרשרת.
- * אם EmailJS מוגדר – משתמש ב-API.
- * אחרת – פותח mailto: ומעתיק קישור ללוח.
  */
 export async function sendApprovalRequestEmail(
   form: FormSubmission,
@@ -96,6 +94,8 @@ export async function sendApprovalRequestEmail(
       {
         to_email: approver.managerEmail,
         to_name: approver.managerName,
+        from_name: 'מערכת הערכת עובדים – אמינח',
+        reply_to: 'romi@aminach.co.il',
         approver_role: approver.title,
         employee_name: form.employeeDetails.employeeName,
         employee_id: form.employeeDetails.employeeId,
@@ -114,7 +114,6 @@ export async function sendApprovalRequestEmail(
 
 /**
  * שולח מייל סיכום למשאבי האנוש לאחר כל האישורים.
- * @param hrEmail - מייל HR שהוזן ע"י המנכ"ל
  */
 export async function sendHrFinalEmail(
   form: FormSubmission,
@@ -143,6 +142,8 @@ export async function sendHrFinalEmail(
       {
         to_email: toEmail,
         to_name: 'מחלקת משאבי אנוש',
+        from_name: 'מערכת הערכת עובדים – אמינח',
+        reply_to: 'romi@aminach.co.il',
         employee_name: form.employeeDetails.employeeName,
         employee_id: form.employeeDetails.employeeId,
         department: form.employeeDetails.department,
